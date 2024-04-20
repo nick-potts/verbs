@@ -120,6 +120,33 @@ it('honors configured context', function () {
         ->toBe('{"is_public":"public","is_protected":"protected","is_private":"private"}');
 });
 
+it('allows us to store a serializable class(es) as a property', function () {
+    $event = new EventWithPhpDocArray();
+
+    $data = app(Serializer::class)->serialize($event);
+    $event2 = app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $data);
+
+    expect($event2->dto)->toBeInstanceOf(DTO::class);
+    expect($event2->dtos[0])->toBeInstanceOf(DTO::class);
+});
+
+it('serializes classes with backed enums', function () {
+    enum Status: string
+    {
+        case ACTIVE = 'active';
+        case INACTIVE = 'inactive';
+    }
+
+    $result = app(Serializer::class)->serialize(new class
+    {
+        public Status $status = Status::ACTIVE;
+
+        public array $statuses = [Status::ACTIVE, Status::INACTIVE];
+    });
+
+    expect($result)->toBe('{"status":"active","statuses":["active","inactive"]}');
+});
+
 test('serializer does not call constructor when deserializing', function () {
     $event = app(Serializer::class)
         ->deserialize(EventWithConstructor::class, []);
@@ -194,5 +221,15 @@ class EventWithConstructor extends Event
     public function __construct()
     {
         $this->constructed = true;
+    }
+}
+
+class EventWithPhpDocArray extends Event
+{
+    public function __construct(
+        public DTO $dto = new DTO(),
+        /** @var DTO[] $dtos */
+        public array $dtos = [new DTO()]
+    ) {
     }
 }
