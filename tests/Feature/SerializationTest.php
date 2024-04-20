@@ -124,14 +124,15 @@ it('serializes and deserializes a class as a property', function () {
     $event = new EventWithPhpDocArray();
 
     $data = app(Serializer::class)->serialize($event);
-    $event2 =  app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $data);
+    $event2 = app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $data);
 
     expect($event2->dto)->toBeInstanceOf(Data::class);
     expect($event2->dtos[0])->toBeInstanceOf(Data::class);
 });
 
 it('serializes classes with backed enums', function () {
-    enum Status: string {
+    enum Status: string
+    {
         case ACTIVE = 'active';
         case INACTIVE = 'inactive';
     }
@@ -139,7 +140,7 @@ it('serializes classes with backed enums', function () {
     $result = app(Serializer::class)->serialize(new class
     {
         public Status $status = Status::ACTIVE;
-        /** @var array */
+
         public array $statuses = [Status::ACTIVE, Status::INACTIVE];
     });
 
@@ -235,7 +236,6 @@ class EventWithPhpDocArray extends Event
         public Data $dto = new Data(),
         /** @var Data[] $dtos */
         public array $dtos = [new Data()]
-    )
-    {
+    ) {
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Thunk\Verbs\Support;
 
-use BackedEnum;
 use ReflectionClass;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Serializer as SymfonySerializer;
