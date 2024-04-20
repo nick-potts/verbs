@@ -120,6 +120,32 @@ it('honors configured context', function () {
         ->toBe('{"is_public":"public","is_protected":"protected","is_private":"private"}');
 });
 
+it('serializes and deserializes a class as a property', function () {
+    $event = new EventWithPhpDocArray();
+
+    $data = app(Serializer::class)->serialize($event);
+    $event2 =  app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $data);
+
+    expect($event2->dto)->toBeInstanceOf(Data::class);
+    expect($event2->dtos[0])->toBeInstanceOf(Data::class);
+});
+
+it('serializes classes with backed enums', function () {
+    enum Status: string {
+        case ACTIVE = 'active';
+        case INACTIVE = 'inactive';
+    }
+
+    $result = app(Serializer::class)->serialize(new class
+    {
+        public Status $status = Status::ACTIVE;
+        /** @var array */
+        public array $statuses = [Status::ACTIVE, Status::INACTIVE];
+    });
+
+    expect($result)->toBe('{"status":"active","statuses":["active","inactive"]}');
+});
+
 test('serializer does not call constructor when deserializing', function () {
     $event = app(Serializer::class)
         ->deserialize(EventWithConstructor::class, []);
@@ -194,5 +220,22 @@ class EventWithConstructor extends Event
     public function __construct()
     {
         $this->constructed = true;
+    }
+}
+
+class Data
+{
+    public int $test = 1;
+}
+
+class EventWithPhpDocArray extends Event
+{
+    public function __construct(
+        /** @var Data $dto */
+        public Data $dto = new Data(),
+        /** @var Data[] $dtos */
+        public array $dtos = [new Data()]
+    )
+    {
     }
 }
