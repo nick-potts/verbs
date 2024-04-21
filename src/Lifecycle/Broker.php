@@ -80,7 +80,13 @@ class Broker implements BrokersEvents
 
             // FIXME: Only write changes + handle aggregate versioning
             app(StateManager::class)->writeSnapshots();
-        } finally {
+        } catch (ConcurrencyException $e) {
+            foreach ($acquiredLocks as $lock) {
+                $lock->release(); // Release only the locks that were successfully acquired
+            }
+            throw $e;
+        }
+        finally {
             foreach ($acquiredLocks as $lock) {
                 $lock->release(); // Release only the locks that were successfully acquired
             }
