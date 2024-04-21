@@ -60,6 +60,8 @@ class Broker implements BrokersEvents
         $locks = collect($loadedStates)
             ->map(fn (string $key)=> \Cache::lock('verbs_state_lock_'.$key))
             ->all();
+
+        $success = true;
         try {
             foreach ($locks as $lock) {
                 $lock->get();
@@ -79,11 +81,14 @@ class Broker implements BrokersEvents
             \DB::commit();
         } catch (\Throwable $e)
         {
-            throw new ConcurrencyException();
+            $success = false;
         } finally {
             foreach ($locks as $lock) {
                 optional($lock)->release();
             }
+        }
+        if (!$success) {
+            throw new ConcurrencyException();
         }
 
         foreach ($events as $event) {
