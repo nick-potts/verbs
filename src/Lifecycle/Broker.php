@@ -70,7 +70,7 @@ class Broker implements BrokersEvents
                 }
                 $acquiredLocks[] = $lock; // Add lock to the list of acquired locks
             }
-
+            \DB::beginTransaction();
             $events = app(EventQueue::class)->flush();
 
             if (empty($events)) {
@@ -81,7 +81,9 @@ class Broker implements BrokersEvents
             $stateManager->fresh();
 
             app(StateManager::class)->writeSnapshots();
+            \DB::commit();
         } catch (ConcurrencyException $e) {
+            \DB::rollBack();
             foreach ($acquiredLocks as $lock) {
                 $lock->release(); // Release only the locks that were successfully acquired
             }
