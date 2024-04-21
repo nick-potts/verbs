@@ -3,6 +3,7 @@
 namespace Thunk\Verbs\Lifecycle;
 
 use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Thunk\Verbs\CommitsImmediately;
 use Thunk\Verbs\Contracts\BrokersEvents;
 use Thunk\Verbs\Contracts\StoresEvents;
@@ -58,15 +59,18 @@ class Broker implements BrokersEvents
 
         /** @var Lock[] $locks */
         $locks = collect($loadedStates)
-            ->map(fn (string $key)=> \Cache::lock('verbs_state_lock_'.$key))
+            ->map(fn (string $key) => \Cache::lock('verbs_state_lock_' . $key, 60))
             ->all();
 
-        $success = true;
+        $acquiredLocks = [];
+
         try {
             foreach ($locks as $lock) {
-                $lock->get();
+                if (!$lock->get()) {
+                    throw new ConcurrencyException("Unable to acquire lock for all keys.");
+                }
+                $acquiredLocks[] = $lock; // Add lock to the list of acquired locks
             }
-            \DB::beginTransaction();
 
             $events = app(EventQueue::class)->flush();
 
@@ -75,21 +79,13 @@ class Broker implements BrokersEvents
             }
 
             // FIXME: Only write changes + handle aggregate versioning
-
             app(StateManager::class)->writeSnapshots();
-
-            \DB::commit();
-        } catch (\Throwable $e)
-        {
-            $success = false;
         } finally {
-            foreach ($locks as $lock) {
-                optional($lock)->release();
+            foreach ($acquiredLocks as $lock) {
+                $lock->release(); // Release only the locks that were successfully acquired
             }
         }
-        if (!$success) {
-            throw new ConcurrencyException();
-        }
+
 
         foreach ($events as $event) {
             $this->metadata->setLastResults($event, $this->dispatcher->handle($event, $event->states()));
