@@ -137,4 +137,9 @@ class StateManager
     {
         return $this->states->keys()->all();
     }
+
+    public function fresh(): void
+    {
+        $this->states->each(fn(State $state) => $state->fresh() );
+    }
 }
