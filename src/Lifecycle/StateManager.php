@@ -129,4 +129,12 @@ class StateManager
     {
         return "{$type}:{$id}";
     }
+
+    /**
+     * @return array<string>
+     */
+    public function loaded(): array
+    {
+        return $this->states->keys()->all();
+    }
 }

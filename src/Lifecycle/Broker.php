@@ -2,10 +2,12 @@
 
 namespace Thunk\Verbs\Lifecycle;
 
+use Illuminate\Contracts\Cache\Lock;
 use Thunk\Verbs\CommitsImmediately;
 use Thunk\Verbs\Contracts\BrokersEvents;
 use Thunk\Verbs\Contracts\StoresEvents;
 use Thunk\Verbs\Event;
+use Thunk\Verbs\Exceptions\ConcurrencyException;
 use Thunk\Verbs\Lifecycle\Queue as EventQueue;
 
 class Broker implements BrokersEvents
@@ -50,15 +52,39 @@ class Broker implements BrokersEvents
 
     public function commit(): bool
     {
-        $events = app(EventQueue::class)->flush();
+        /** @var StateManager $stateManager */
+        $stateManager = app(StateManager::class);
+        $loadedStates = $stateManager->loaded();
 
-        if (empty($events)) {
-            return true;
+        /** @var Lock[] $locks */
+        $locks = collect($loadedStates)
+            ->map(fn (string $key)=> \Cache::lock('verbs_state_lock_'.$key))
+            ->all();
+        try {
+            foreach ($locks as $lock) {
+                $lock->get();
+            }
+            \DB::beginTransaction();
+
+            $events = app(EventQueue::class)->flush();
+
+            if (empty($events)) {
+                return true;
+            }
+
+            // FIXME: Only write changes + handle aggregate versioning
+
+            app(StateManager::class)->writeSnapshots();
+
+            \DB::commit();
+        } catch (\Throwable $e)
+        {
+            throw new ConcurrencyException();
+        } finally {
+            foreach ($locks as $lock) {
+                optional($lock)->release();
+            }
         }
-
-        // FIXME: Only write changes + handle aggregate versioning
-
-        app(StateManager::class)->writeSnapshots();
 
         foreach ($events as $event) {
             $this->metadata->setLastResults($event, $this->dispatcher->handle($event, $event->states()));
