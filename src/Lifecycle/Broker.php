@@ -88,8 +88,7 @@ class Broker implements BrokersEvents
                 $lock->release(); // Release only the locks that were successfully acquired
             }
             throw $e;
-        }
-        finally {
+        } finally {
             foreach ($acquiredLocks as $lock) {
                 $lock->release(); // Release only the locks that were successfully acquired
             }
