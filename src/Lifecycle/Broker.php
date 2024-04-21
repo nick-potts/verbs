@@ -3,7 +3,6 @@
 namespace Thunk\Verbs\Lifecycle;
 
 use Illuminate\Contracts\Cache\Lock;
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Thunk\Verbs\CommitsImmediately;
 use Thunk\Verbs\Contracts\BrokersEvents;
 use Thunk\Verbs\Contracts\StoresEvents;
@@ -59,15 +58,15 @@ class Broker implements BrokersEvents
 
         /** @var Lock[] $locks */
         $locks = collect($loadedStates)
-            ->map(fn (string $key) => \Cache::lock('verbs_state_lock_' . $key, 60))
+            ->map(fn (string $key) => \Cache::lock('verbs_state_lock_'.$key, 60))
             ->all();
 
         $acquiredLocks = [];
 
         try {
             foreach ($locks as $lock) {
-                if (!$lock->get()) {
-                    throw new ConcurrencyException("Unable to acquire lock for all keys.");
+                if (! $lock->get()) {
+                    throw new ConcurrencyException('Unable to acquire lock for all keys.');
                 }
                 $acquiredLocks[] = $lock; // Add lock to the list of acquired locks
             }
@@ -85,7 +84,6 @@ class Broker implements BrokersEvents
                 $lock->release(); // Release only the locks that were successfully acquired
             }
         }
-
 
         foreach ($events as $event) {
             $this->metadata->setLastResults($event, $this->dispatcher->handle($event, $event->states()));
