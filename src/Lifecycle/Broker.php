@@ -58,7 +58,7 @@ class Broker implements BrokersEvents
 
         /** @var Lock[] $locks */
         $locks = collect($loadedStates)
-            ->map(fn (string $key)=> \Cache::lock('verbs_state_lock_'.$key))
+            ->map(fn (string $key) => \Cache::lock('verbs_state_lock_'.$key))
             ->all();
         try {
             foreach ($locks as $lock) {
@@ -77,8 +77,7 @@ class Broker implements BrokersEvents
             app(StateManager::class)->writeSnapshots();
 
             \DB::commit();
-        } catch (\Throwable $e)
-        {
+        } catch (\Throwable $e) {
             throw new ConcurrencyException();
         } finally {
             foreach ($locks as $lock) {
