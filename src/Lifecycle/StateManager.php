@@ -140,6 +140,6 @@ class StateManager
 
     public function fresh(): void
     {
-        $this->states->each(fn(State $state) => $state->fresh() );
+        $this->states->each(fn (State $state) => $state->fresh());
     }
 }
