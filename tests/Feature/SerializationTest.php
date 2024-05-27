@@ -121,13 +121,16 @@ it('honors configured context', function () {
 });
 
 it('allows us to store a serializable class(es) as a property', function () {
-    $event = new EventWithPhpDocArray();
+    $original_event = new EventWithPhpDocArray();
 
-    $data = app(Serializer::class)->serialize($event);
-    $event2 = app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $data);
+    $serialized_data = app(Serializer::class)->serialize($original_event);
 
-    expect($event2->dto)->toBeInstanceOf(DTO::class);
-    expect($event2->dtos[0])->toBeInstanceOf(DTO::class);
+    expect($serialized_data)->toBe('{"dto":{"fqcn":"DTO","foo":1},"dtos":[{"fqcn":"DTO","foo":1}]}');
+
+    $deserialized_event = app(Serializer::class)->deserialize(EventWithPhpDocArray::class, $serialized_data);
+
+    expect($deserialized_event->dto)->toBeInstanceOf(DTO::class)
+        ->and($deserialized_event->dtos[0])->toBeInstanceOf(DTO::class);
 });
 
 it('serializes classes with backed enums', function () {
@@ -137,14 +140,14 @@ it('serializes classes with backed enums', function () {
         case INACTIVE = 'inactive';
     }
 
-    $result = app(Serializer::class)->serialize(new class
+    $serialized = app(Serializer::class)->serialize(new class
     {
         public Status $status = Status::ACTIVE;
 
         public array $statuses = [Status::ACTIVE, Status::INACTIVE];
     });
 
-    expect($result)->toBe('{"status":"active","statuses":["active","inactive"]}');
+    expect($serialized)->toBe('{"status":"active","statuses":["active","inactive"]}');
 });
 
 test('serializer does not call constructor when deserializing', function () {
