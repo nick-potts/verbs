@@ -19,8 +19,7 @@ class Broker implements BrokersEvents
     public function __construct(
         protected Dispatcher $dispatcher,
         protected MetadataManager $metadata,
-    ) {
-    }
+    ) {}
 
     public function fire(Event $event): ?Event
     {

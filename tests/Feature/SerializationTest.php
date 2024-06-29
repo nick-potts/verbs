@@ -189,8 +189,7 @@ class EventWithConstructorPromotion extends Event
         public Snowflake $snowflake,
         public CarbonInterface $timestamp,
         public string $string,
-    ) {
-    }
+    ) {}
 }
 
 class EventWithJustPublicProperties extends Event
@@ -230,6 +229,5 @@ class EventWithPhpDocArray extends Event
         public DTO $dto = new DTO(),
         /** @var DTO[] $dtos */
         public array $dtos = [new DTO()]
-    ) {
-    }
+    ) {}
 }
