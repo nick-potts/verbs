@@ -60,7 +60,7 @@ class EventStore implements StoresEvents
                 ->when($after_id, fn (Builder $query) => $query->whereRelation('event', 'id', '>', Id::from($after_id)))
 
                 // fixing singlestore grammer
-                ->orderByRaw('id');
+                ->orderByRaw((new VerbStateEvent())->getKeyName());
 
             return $query->lazy()
                 ->map(fn (VerbStateEvent $pivot) => $pivot->event);
