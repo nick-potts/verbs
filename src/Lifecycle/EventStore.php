@@ -54,12 +54,16 @@ class EventStore implements StoresEvents
         bool $singleton,
     ): LazyCollection {
         if ($state) {
-            return VerbStateEvent::query()
+            $query = VerbStateEvent::query()
                 ->with('event')
                 ->unless($singleton, fn (Builder $query) => $query->where('state_id', $state->id))
                 ->where('state_type', $state::class)
                 ->when($after_id, fn (Builder $query) => $query->whereRelation('event', 'id', '>', Id::from($after_id)))
-                ->lazyById()
+
+                // fixing singlestore grammer
+                ->orderByRaw('id');
+
+            return $query->lazy()
                 ->map(fn (VerbStateEvent $pivot) => $pivot->event);
         }
 
