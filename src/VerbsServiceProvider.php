@@ -25,6 +25,7 @@ use Thunk\Verbs\Contracts\StoresEvents;
 use Thunk\Verbs\Contracts\StoresSnapshots;
 use Thunk\Verbs\Lifecycle\AutoCommitManager;
 use Thunk\Verbs\Lifecycle\Broker;
+use Thunk\Verbs\Lifecycle\DeferredWriteQueue;
 use Thunk\Verbs\Lifecycle\Dispatcher;
 use Thunk\Verbs\Lifecycle\EventStore;
 use Thunk\Verbs\Lifecycle\MetadataManager;
@@ -71,6 +72,7 @@ class VerbsServiceProvider extends PackageServiceProvider
         $this->app->singleton(StateManager::class);
         $this->app->singleton(EventStateRegistry::class);
         $this->app->singleton(MetadataManager::class);
+        $this->app->singleton(DeferredWriteQueue::class);
 
         $this->app->singleton(IdManager::class, function (Container $app) {
             return new IdManager(

@@ -92,6 +92,8 @@ class Broker implements BrokersEvents
                     return $event;
                 });
         } finally {
+            app(DeferredWriteQueue::class)->flush();
+
             app(StateManager::class)->setReplaying(false);
             $this->is_replaying = false;
         }

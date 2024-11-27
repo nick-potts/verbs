@@ -11,6 +11,7 @@ use SplObjectStorage;
 use Thunk\Verbs\Event;
 use Thunk\Verbs\Metadata;
 use Thunk\Verbs\State;
+use Thunk\Verbs\Support\DeferredWriteData;
 use Thunk\Verbs\Support\Reflector;
 use Thunk\Verbs\Support\StateCollection;
 use Thunk\Verbs\Support\Wormhole;
@@ -45,11 +46,12 @@ class Hook
     }
 
     public function __construct(
-        public Closure $callback,
-        public array $events = [],
-        public array $states = [],
-        public SplObjectStorage $phases = new SplObjectStorage(),
-        public ?string $name = null,
+        public Closure            $callback,
+        public array              $events = [],
+        public array              $states = [],
+        public SplObjectStorage   $phases = new SplObjectStorage(),
+        public ?string            $name = null,
+        public ?DeferredWriteData $deferred = null,
     ) {
     }
 
@@ -112,7 +114,12 @@ class Hook
     public function replay(Container $container, Event $event, StateCollection $states): void
     {
         if ($this->runsInPhase(Phase::Replay)) {
-            app(Wormhole::class)->replay($event, fn () => $container->call($this->callback, $this->guessParameters($event, states: $states)));
+            $callable = fn () => $container->call($this->callback, $this->guessParameters($event, states: $states));
+            if ($this->deferred) {
+                app(DeferredWriteQueue::class)->add($event, $callable, $this->deferred);
+            } else {
+                app(Wormhole::class)->replay($event, $callable);
+            }
         }
     }
 
