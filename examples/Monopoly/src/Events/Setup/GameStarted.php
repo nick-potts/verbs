@@ -13,8 +13,7 @@ class GameStarted extends Event
 {
     public function __construct(
         public ?int $game_id = null,
-    ) {
-    }
+    ) {}
 
     public function validate(GameState $game)
     {
@@ -26,7 +25,7 @@ class GameStarted extends Event
         $game->started = true;
         $game->started_at = now()->toImmutable();
         $game->player_ids = [];
-        $game->board = new Board();
-        $game->bank = new Bank();
+        $game->board = new Board;
+        $game->bank = new Bank;
     }
 }

@@ -23,8 +23,7 @@ class EventStore implements StoresEvents
 {
     public function __construct(
         protected MetadataManager $metadata,
-    ) {
-    }
+    ) {}
 
     public function read(
         ?State $state = null,
@@ -53,7 +52,7 @@ class EventStore implements StoresEvents
         Bits|UuidInterface|AbstractUid|int|string|null $after_id,
         bool $singleton,
     ): LazyCollection {
-        $tableName = (new VerbEvent())->getTable();
+        $tableName = (new VerbEvent)->getTable();
 
         return VerbEvent::query()
             ->select("{$tableName}.*")
@@ -74,7 +73,7 @@ class EventStore implements StoresEvents
     /** @param  Event[]  $events */
     protected function guardAgainstConcurrentWrites(array $events): void
     {
-        $max_event_ids = new Collection();
+        $max_event_ids = new Collection;
 
         $query = VerbStateEvent::query()->toBase();
 

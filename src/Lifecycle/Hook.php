@@ -46,14 +46,13 @@ class Hook
     }
 
     public function __construct(
-        public Closure            $callback,
-        public array              $events = [],
-        public array              $states = [],
-        public SplObjectStorage   $phases = new SplObjectStorage(),
-        public ?string            $name = null,
+        public Closure $callback,
+        public array $events = [],
+        public array $states = [],
+        public SplObjectStorage $phases = new SplObjectStorage,
+        public ?string $name = null,
         public ?DeferredWriteData $deferred = null,
-    ) {
-    }
+    ) {}
 
     public function forcePhases(Phase ...$phases): static
     {

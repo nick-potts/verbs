@@ -25,7 +25,7 @@ class StateManager
         protected StoresSnapshots $snapshots,
         protected StoresEvents $events,
     ) {
-        $this->states = new Collection();
+        $this->states = new Collection;
     }
 
     public function register(State $state): State
@@ -93,7 +93,7 @@ class StateManager
 
     public function reset(bool $include_storage = false): static
     {
-        $this->states = new Collection();
+        $this->states = new Collection;
         $this->is_replaying = false;
 
         if ($include_storage) {

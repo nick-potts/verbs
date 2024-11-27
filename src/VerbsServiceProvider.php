@@ -99,11 +99,11 @@ class VerbsServiceProvider extends PackageServiceProvider
 
         $this->app->singleton(PropertyNormalizer::class, function () {
             $loader = class_exists(AttributeLoader::class)
-                ? new AttributeLoader()
-                : new AnnotationLoader();
+                ? new AttributeLoader
+                : new AnnotationLoader;
 
             return new PropertyNormalizer(
-                propertyTypeExtractor: new ReflectionExtractor(),
+                propertyTypeExtractor: new ReflectionExtractor,
                 classDiscriminatorResolver: new ClassDiscriminatorFromClassMetadata(new ClassMetadataFactory($loader)),
             );
         });
@@ -116,7 +116,7 @@ class VerbsServiceProvider extends PackageServiceProvider
                     ->map(fn ($class_name) => app($class_name))
                     ->values()
                     ->all(),
-                encoders: [new JsonEncoder()],
+                encoders: [new JsonEncoder],
             );
         });
 

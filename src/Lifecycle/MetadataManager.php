@@ -19,8 +19,8 @@ class MetadataManager
 
     public function __construct()
     {
-        $this->ephemeral = new WeakMap();
-        $this->persistent = new WeakMap();
+        $this->ephemeral = new WeakMap;
+        $this->persistent = new WeakMap;
     }
 
     public function createMetadataUsing(?callable $callback = null): void
@@ -39,7 +39,7 @@ class MetadataManager
 
     public function getLastResults(Event $event): Collection
     {
-        return $this->getEphemeral($event, '_last_results', new Collection());
+        return $this->getEphemeral($event, '_last_results', new Collection);
     }
 
     public function getEphemeral(Event $event, ?string $key = null, mixed $default = null): mixed
@@ -79,7 +79,7 @@ class MetadataManager
 
     protected function makeMetadata(Event $event): Metadata
     {
-        $metadata = new Metadata();
+        $metadata = new Metadata;
 
         foreach ($this->callbacks as $callback) {
             $result = $callback($metadata, $event);
