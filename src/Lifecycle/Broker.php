@@ -6,6 +6,7 @@ use Thunk\Verbs\CommitsImmediately;
 use Thunk\Verbs\Contracts\BrokersEvents;
 use Thunk\Verbs\Contracts\StoresEvents;
 use Thunk\Verbs\Event;
+use Thunk\Verbs\Exceptions\EventNotValid;
 use Thunk\Verbs\Lifecycle\Queue as EventQueue;
 
 class Broker implements BrokersEvents
@@ -17,7 +18,17 @@ class Broker implements BrokersEvents
     public function __construct(
         protected Dispatcher $dispatcher,
         protected MetadataManager $metadata,
-    ) {
+        protected EventQueue $queue,
+        protected StateManager $states,
+    ) {}
+
+    public function fireIfValid(Event $event): ?Event
+    {
+        try {
+            return $this->fire($event);
+        } catch (EventNotValid) {
+            return null;
+        }
     }
 
     public function fire(Event $event): ?Event
@@ -29,17 +40,15 @@ class Broker implements BrokersEvents
         // NOTE: Any changes to how the dispatcher is called here
         // should also be applied to the `replay` method
 
-        $states = $event->states();
+        $this->dispatcher->boot($event);
 
-        $states->each(fn ($state) => Guards::for($event, $state)->check());
+        Guards::for($event)->check();
 
-        Guards::for($event, null)->check();
+        $this->dispatcher->apply($event);
 
-        $states->each(fn ($state) => $this->dispatcher->apply($event, $state));
+        $this->queue->queue($event);
 
-        app(Queue::class)->queue($event);
-
-        $this->dispatcher->fired($event, $states);
+        $this->dispatcher->fired($event);
 
         if ($this->commit_immediately || $event instanceof CommitsImmediately) {
             $this->commit();
@@ -50,7 +59,7 @@ class Broker implements BrokersEvents
 
     public function commit(): bool
     {
-        $events = app(EventQueue::class)->flush();
+        $events = $this->queue->flush();
 
         if (empty($events)) {
             return true;
@@ -58,41 +67,49 @@ class Broker implements BrokersEvents
 
         // FIXME: Only write changes + handle aggregate versioning
 
-        app(StateManager::class)->writeSnapshots();
+        $this->states->writeSnapshots();
+        $this->states->prune();
 
         foreach ($events as $event) {
-            $this->metadata->setLastResults($event, $this->dispatcher->handle($event, $event->states()));
+            $this->metadata->setLastResults($event, $this->dispatcher->handle($event));
         }
 
         return $this->commit();
     }
 
-    public function replay(?callable $beforeEach = null, ?callable $afterEach = null)
+    public function replay(?callable $beforeEach = null, ?callable $afterEach = null): void
     {
         $this->is_replaying = true;
 
         try {
-            app(StateManager::class)->reset(include_storage: true);
+            $this->states->reset(include_storage: true);
+
+            $iteration = 0;
 
             app(StoresEvents::class)->read()
-                ->each(function (Event $event) use ($beforeEach, $afterEach) {
-                    app(StateManager::class)->setReplaying(true);
+                ->each(function (Event $event) use ($beforeEach, $afterEach, &$iteration) {
+                    $this->states->setReplaying(true);
 
                     if ($beforeEach) {
                         $beforeEach($event);
                     }
 
-                    $event->states()->each(fn ($state) => $this->dispatcher->apply($event, $state));
-                    $this->dispatcher->replay($event, $event->states());
+                    $this->dispatcher->apply($event);
+                    $this->dispatcher->replay($event);
 
                     if ($afterEach) {
                         $afterEach($event);
                     }
 
-                    return $event;
+                    if ($iteration++ % 500 === 0 && $this->states->willPrune()) {
+                        $this->states->writeSnapshots();
+                        $this->states->prune();
+                    }
                 });
         } finally {
-            app(StateManager::class)->setReplaying(false);
+            $this->states->writeSnapshots();
+            $this->states->prune();
+            $this->states->setReplaying(false);
             $this->is_replaying = false;
         }
     }
@@ -100,5 +117,10 @@ class Broker implements BrokersEvents
     public function commitImmediately(bool $commit_immediately = true): void
     {
         $this->commit_immediately = $commit_immediately;
+    }
+
+    public function skipPhases(Phase ...$phases): void
+    {
+        $this->dispatcher->skipPhases(...$phases);
     }
 }

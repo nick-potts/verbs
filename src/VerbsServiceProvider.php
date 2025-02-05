@@ -9,7 +9,9 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\DateFactory;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
+use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Mapping\ClassDiscriminatorFromClassMetadata;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
@@ -35,6 +37,7 @@ use Thunk\Verbs\Livewire\SupportVerbs;
 use Thunk\Verbs\Support\EventStateRegistry;
 use Thunk\Verbs\Support\IdManager;
 use Thunk\Verbs\Support\Serializer;
+use Thunk\Verbs\Support\StateInstanceCache;
 use Thunk\Verbs\Support\Wormhole;
 
 class VerbsServiceProvider extends PackageServiceProvider
@@ -48,11 +51,6 @@ class VerbsServiceProvider extends PackageServiceProvider
                 MakeVerbEventCommand::class,
                 MakeVerbStateCommand::class,
                 ReplayCommand::class,
-            )
-            ->hasMigrations(
-                'create_verb_events_table',
-                'create_verb_snapshots_table',
-                'create_verb_state_events_table',
             );
     }
 
@@ -63,14 +61,24 @@ class VerbsServiceProvider extends PackageServiceProvider
 
     public function packageRegistered()
     {
-        $this->app->singleton(Broker::class);
-        $this->app->singleton(Dispatcher::class);
-        $this->app->singleton(EventStore::class);
+        $this->app->scoped(Broker::class);
+        $this->app->scoped(Dispatcher::class);
+        $this->app->scoped(EventStore::class);
         $this->app->singleton(SnapshotStore::class);
-        $this->app->singleton(EventQueue::class);
-        $this->app->singleton(StateManager::class);
-        $this->app->singleton(EventStateRegistry::class);
+        $this->app->scoped(EventQueue::class);
+        $this->app->scoped(EventStateRegistry::class);
         $this->app->singleton(MetadataManager::class);
+
+        $this->app->scoped(StateManager::class, function (Container $app) {
+            return new StateManager(
+                dispatcher: $app->make(Dispatcher::class),
+                snapshots: $app->make(StoresSnapshots::class),
+                events: $app->make(StoresEvents::class),
+                states: new StateInstanceCache(
+                    capacity: $app->make(Repository::class)->get('verbs.state_cache_size', 100)
+                ),
+            );
+        });
 
         $this->app->singleton(IdManager::class, function (Container $app) {
             return new IdManager(
@@ -97,11 +105,15 @@ class VerbsServiceProvider extends PackageServiceProvider
 
         $this->app->singleton(PropertyNormalizer::class, function () {
             $loader = class_exists(AttributeLoader::class)
-                ? new AttributeLoader()
-                : new AnnotationLoader();
+                ? new AttributeLoader
+                : new AnnotationLoader;
 
             return new PropertyNormalizer(
-                propertyTypeExtractor: new ReflectionExtractor(),
+                propertyTypeExtractor: new PropertyInfoExtractor(
+                    typeExtractors: [
+                        new PhpDocExtractor,
+                        new ReflectionExtractor,
+                    ]),
                 classDiscriminatorResolver: new ClassDiscriminatorFromClassMetadata(new ClassMetadataFactory($loader)),
             );
         });
@@ -114,11 +126,11 @@ class VerbsServiceProvider extends PackageServiceProvider
                     ->map(fn ($class_name) => app($class_name))
                     ->values()
                     ->all(),
-                encoders: [new JsonEncoder()],
+                encoders: [new JsonEncoder],
             );
         });
 
-        $this->app->singleton(AutoCommitManager::class, function (Container $app) {
+        $this->app->scoped(AutoCommitManager::class, function (Container $app) {
             return new AutoCommitManager(
                 broker: $app->make(BrokersEvents::class),
                 enabled: $app->make(Repository::class)->get('verbs.autocommit', true),
@@ -130,9 +142,13 @@ class VerbsServiceProvider extends PackageServiceProvider
         $this->app->alias(SnapshotStore::class, StoresSnapshots::class);
     }
 
-    public function boot()
+    public function packageBooted()
     {
-        parent::boot();
+        $this->publishes([
+            __DIR__.'/../database/migrations/' => database_path('migrations'),
+        ], "{$this->package->shortName()}-migrations");
+
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         if ($this->app->has('livewire')) {
             $manager = $this->app->make('livewire');
@@ -149,7 +165,7 @@ class VerbsServiceProvider extends PackageServiceProvider
 
         // Hook into Laravel event dispatcher
         $this->app->make(LaravelDispatcher::class)
-            ->listen('*', fn (string $name, array $data) => $this->handleEvent(...$data));
+            ->listen('*', fn (string $name, array $data) => $this->handleEvent($data[0] ?? null));
     }
 
     protected function handleEvent($event = null)

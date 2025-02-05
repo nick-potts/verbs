@@ -14,6 +14,7 @@ use Thunk\Verbs\Contracts\StoresEvents;
 use Thunk\Verbs\Event;
 use Thunk\Verbs\Facades\Id;
 use Thunk\Verbs\Lifecycle\MetadataManager;
+use Thunk\Verbs\SingletonState;
 use Thunk\Verbs\State;
 
 class EventStoreFake implements StoresEvents
@@ -26,21 +27,20 @@ class EventStoreFake implements StoresEvents
     public function __construct(
         protected MetadataManager $metadata,
     ) {
-        $this->events = new Collection();
+        $this->events = new Collection;
     }
 
     public function read(
         ?State $state = null,
         UuidInterface|string|int|AbstractUid|Bits|null $after_id = null,
-        bool $singleton = false
     ): LazyCollection {
         return LazyCollection::make($this->events)
             ->flatten()
             ->when($after_id, function (LazyCollection $events, $after_id) {
                 return $events->filter(fn (Event $event) => $event->id > Id::from($after_id));
             })
-            ->when($state, function (LazyCollection $events, State $state) use ($singleton) {
-                return $singleton
+            ->when($state, function (LazyCollection $events, State $state) {
+                return $state instanceof SingletonState
                     ? $events->filter(fn (Event $event) => $event->state($state::class) !== null)
                     : $events->filter(fn (Event $event) => $event->state($state::class)?->id === $state->id);
             })
@@ -50,7 +50,7 @@ class EventStoreFake implements StoresEvents
     public function write(array $events): bool
     {
         foreach ($events as $event) {
-            $this->events[$event::class] ??= new Collection();
+            $this->events[$event::class] ??= new Collection;
             $this->events[$event::class]->push($event);
         }
 
@@ -61,7 +61,7 @@ class EventStoreFake implements StoresEvents
     public function committed(string $class_name, ?Closure $filter = null): Collection
     {
         if (! $this->hasCommitted($class_name)) {
-            return new Collection();
+            return new Collection;
         }
 
         return $this->events[$class_name]

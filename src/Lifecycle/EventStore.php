@@ -16,6 +16,7 @@ use Thunk\Verbs\Exceptions\ConcurrencyException;
 use Thunk\Verbs\Facades\Id;
 use Thunk\Verbs\Models\VerbEvent;
 use Thunk\Verbs\Models\VerbStateEvent;
+use Thunk\Verbs\SingletonState;
 use Thunk\Verbs\State;
 use Thunk\Verbs\Support\Serializer;
 
@@ -23,15 +24,13 @@ class EventStore implements StoresEvents
 {
     public function __construct(
         protected MetadataManager $metadata,
-    ) {
-    }
+    ) {}
 
     public function read(
         ?State $state = null,
         Bits|UuidInterface|AbstractUid|int|string|null $after_id = null,
-        bool $singleton = false,
     ): LazyCollection {
-        return $this->readEvents($state, $after_id, $singleton)
+        return $this->readEvents($state, $after_id)
             ->each(fn (VerbEvent $model) => $this->metadata->set($model->event(), $model->metadata()))
             ->map(fn (VerbEvent $model) => $model->event());
     }
@@ -51,30 +50,28 @@ class EventStore implements StoresEvents
     protected function readEvents(
         ?State $state,
         Bits|UuidInterface|AbstractUid|int|string|null $after_id,
-        bool $singleton,
     ): LazyCollection {
-        $tableName = (new VerbEvent())->getTable();
+        if ($state) {
+            return VerbStateEvent::query()
+                ->with('event')
+                ->unless($state instanceof SingletonState, fn (Builder $query) => $query->where('state_id', $state->id))
+                ->where('state_type', $state::class)
+                ->when($after_id, fn (Builder $query) => $query->whereRelation('event', 'id', '>', Id::from($after_id)))
+                ->lazyById()
+                ->remember()
+                ->map(fn (VerbStateEvent $pivot) => $pivot->event);
+        }
 
         return VerbEvent::query()
-            ->select("{$tableName}.*")
             ->when($after_id, fn (Builder $query) => $query->where('id', '>', Id::from($after_id)))
-            ->when($state, function (Builder $query) use ($tableName, $state, $singleton) {
-                $query->joinSub(
-                    VerbStateEvent::query()
-                        ->select('event_id')
-                        ->where('state_type', $state::class)
-                        ->unless($singleton, fn (Builder $query) => $query->where('state_id', $state->id)),
-                    'state_events',
-                    fn ($join) => $join->on($tableName.'.id', '=', 'state_events.event_id')
-                );
-            })
-            ->lazyById();
+            ->lazyById()
+            ->remember();
     }
 
     /** @param  Event[]  $events */
     protected function guardAgainstConcurrentWrites(array $events): void
     {
-        $max_event_ids = new Collection();
+        $max_event_ids = new Collection;
 
         $query = VerbStateEvent::query()->toBase();
 
@@ -148,6 +145,7 @@ class EventStore implements StoresEvents
                 'created_at' => now(),
                 'updated_at' => now(),
             ]))
+            ->values()
             ->all();
     }
 }

@@ -7,7 +7,10 @@ use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use ReflectionAttribute;
 use ReflectionClass;
+use ReflectionIntersectionType;
+use ReflectionNamedType;
 use ReflectionProperty;
+use ReflectionUnionType;
 use Thunk\Verbs\Attributes\Autodiscovery\StateDiscoveryAttribute;
 use Thunk\Verbs\Event;
 use Thunk\Verbs\Lifecycle\StateManager;
@@ -17,15 +20,19 @@ class EventStateRegistry
 {
     protected array $discovered_attributes = [];
 
+    protected array $discovered_properties = [];
+
     public function __construct(
-        protected StateManager $manager
-    ) {
-    }
+        protected StateManager $manager,
+    ) {}
 
     public function getStates(Event $event): StateCollection
     {
-        $discovered = new StateCollection();
-        $deferred = new StateCollection();
+        $discovered = new StateCollection;
+        $deferred = new StateCollection;
+
+        // If there are any properties that are states, we'll load them first
+        $discovered->push(...$this->getProperties($event));
 
         foreach ($this->getAttributes($event) as $attribute) {
             // If there are state dependencies that the attribute relies on that we haven't already
@@ -50,12 +57,12 @@ class EventStateRegistry
         $states = Arr::wrap(
             $attribute
                 ->setDiscoveredState($discovered)
-                ->discoverState($target, $this->manager)
+                ->discoverState($target, $this->manager),
         );
 
         $discovered->push(...$states);
 
-        if ($alias = $attribute->getAlias()) {
+        if (count($states) > 0 && $alias = $attribute->getAlias()) {
             if (count($states) > 1) {
                 throw new InvalidArgumentException('You cannot provide an alias for an array of states.');
             }
@@ -101,5 +108,53 @@ class EventStateRegistry
     protected function isStateDiscoveryAttribute(ReflectionAttribute $attribute): bool
     {
         return is_a($attribute->getName(), StateDiscoveryAttribute::class, true);
+    }
+
+    /** @return Collection<int, State> */
+    protected function getProperties(Event $target): Collection
+    {
+        return $this->discovered_properties[$target::class][$target->id] ??= $this->findAllProperties($target);
+    }
+
+    /** @return Collection<int, State> */
+    protected function findAllProperties(Event $target): Collection
+    {
+        $reflect = new ReflectionClass($target);
+
+        return collect($reflect->getProperties(ReflectionProperty::IS_PUBLIC))
+            ->filter(function (ReflectionProperty $property) use ($target) {
+                $property_type = $property->getType();
+
+                if (
+                    $property_type instanceof ReflectionNamedType
+                    && $property_type->allowsNull()
+                    && $property->getValue($target) === null
+                ) {
+                    return false;
+                }
+
+                $all_property_types = match ($property_type::class) {
+                    ReflectionUnionType::class, ReflectionIntersectionType::class => $property_type->getTypes(),
+                    default => [$property_type],
+                };
+
+                foreach ($all_property_types as $type) {
+                    $name = $type?->getName();
+                    if ($name && $this->isStateClass($name)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->map(fn (ReflectionProperty $property) => $property->getValue($target))
+            ->flatten();
+    }
+
+    protected function isStateClass(string $name): bool
+    {
+        return is_subclass_of($name, State::class)
+            || $name === State::class
+            || $name === StateCollection::class;
     }
 }

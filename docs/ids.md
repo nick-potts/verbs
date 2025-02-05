@@ -17,11 +17,38 @@ A helper method you can use to generate a snowflake right out of the box: `snowf
 For models that you're going to manage via events, pull in the `HasSnowflakes` trait:
 
 ```php
+use Glhd\Bits\Database\HasSnowflakes;
+use Glhd\Bits\Snowflake;
+
 class JobApplication extends Model
 {
     use HasSnowflakes; // Add this to your model
+
+    // Any attribute can be cast to a `Snowflake` (or `Sonyflake`)
+    protected $casts = [
+        'id' => Snowflake::class,
+    ];
 }
 ```
+
+Bits also provides helpers for your migrations:
+
+```php
+/**
+ * Run the migrations.
+ */
+public function up(): void
+{
+    Schema::create('job_applications', function (Blueprint $table) {
+        $table->snowflakeId();
+        $table->snowflake('user_id')->index();
+        $table->foreign('user_id')->references('id')->on('users');
+        // ...
+    });
+}
+```
+
+The `snowflakeId()` method creates a new primary key column with a default name of 'id'.  The `snowflake()` method adds a regular snowflake column which is ideal for creating foreign keys.
 
 ### Automatically generate snowflake ids
 

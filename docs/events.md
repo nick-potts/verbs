@@ -1,4 +1,4 @@
-In Verbs, Events are the source of your data changes. Before we fire an event, we give it all the data we need it to track, and we describe in the event exactly what it should do with that data once its been fired.
+In Verbs, Events are the source of your data changes. Before we fire an event, we give it all the data we need it to track, and we describe in the event exactly what it should do with that data once it's been fired.
 
 ## Generating an Event
 
@@ -248,6 +248,9 @@ Or the `#[Once]` [attribute](/docs/technical/attributes#content-once).
 ### Firing during Replays
 
 During a [replay](#content-replaying-events), the system isn't "firing" the event in the original sense (i.e., it's not going through the initial logic that might include checks, validations, or triggering of additional side effects like sending one-time notifications). Instead, it directly applies the changes recorded in the event store.
+
+
+See also: [Event Lifecycle](/docs/technical/event-lifecycle)
 
 
 ### Wormholes

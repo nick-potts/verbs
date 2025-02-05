@@ -9,13 +9,15 @@ it('can injects states as expected', function () {
     Verbs::fake();
     $event = DependencyInjectionTestEvent::fire();
     Verbs::commit();
-    expect($event->expectations)->toBeEmpty();
+    expect($event->expectations)->toEqual([]);
 });
 
 it('can inject states of same type into event handle methods by alias', function () {
     Verbs::fake();
     DependencyInjectionTestMultiHandleEvent::commit();
 });
+
+// TODO: How do we handle nullable state_ids
 
 class DependencyInjectionTestEvent extends Event
 {
@@ -31,8 +33,7 @@ class DependencyInjectionTestEvent extends Event
     public function __construct(
         #[StateId(DependencyInjectionTestState::class)] public ?int $test1_id,
         #[StateId(DependencyInjectionTestSecondState::class)] public ?int $test2_id,
-    ) {
-    }
+    ) {}
 
     public function validate1(DependencyInjectionTestState $state)
     {
@@ -66,17 +67,12 @@ class DependencyInjectionTestMultiHandleEvent extends Event
     public function __construct(
         #[StateId(DependencyInjectionTestState::class)] public ?int $test1_id,
         #[StateId(DependencyInjectionTestState::class)] public ?int $test2_id,
-    ) {
-    }
+    ) {}
 
-    public function apply(DependencyInjectionTestState $state)
+    public function apply(DependencyInjectionTestState $test1, DependencyInjectionTestState $test2)
     {
-        if ($state->id === $this->test1_id) {
-            $state->name = 'test1';
-        }
-        if ($state->id === $this->test2_id) {
-            $state->name = 'test2';
-        }
+        $test1->name = 'test1';
+        $test2->name = 'test2';
     }
 
     public function handle(DependencyInjectionTestState $test1, DependencyInjectionTestState $test2)
