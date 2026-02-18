@@ -48,10 +48,9 @@ class Hook
         public Closure $callback,
         public array $events = [],
         public array $states = [],
-        public SplObjectStorage $phases = new SplObjectStorage(),
+        public SplObjectStorage $phases = new SplObjectStorage,
         public ?string $name = null,
-    ) {
-    }
+    ) {}
 
     public function forcePhases(Phase ...$phases): static
     {

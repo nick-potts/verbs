@@ -70,13 +70,13 @@ it('triggers an error when using positional arguments with an event that does no
 it('allows us to store a serializable class as a property', function () {
     expect(function () {
         EventWithDto::fire(
-            dto: new DTO()
+            dto: new DTO
         );
     })->not->toThrow(TypeError::class);
 });
 
 it('honors configured context', function () {
-    $target = new class()
+    $target = new class
     {
         public $is_public = 'public';
 
@@ -121,7 +121,7 @@ it('honors configured context', function () {
 });
 
 it('allows us to store a serializable class(es) as a property', function () {
-    $original_event = new EventWithPhpDocArray();
+    $original_event = new EventWithPhpDocArray;
 
     $serialized_data = app(Serializer::class)->serialize($original_event);
 
@@ -192,8 +192,7 @@ class EventWithConstructorPromotion extends Event
         public Snowflake $snowflake,
         public CarbonInterface $timestamp,
         public string $string,
-    ) {
-    }
+    ) {}
 }
 
 class EventWithJustPublicProperties extends Event
@@ -230,9 +229,8 @@ class EventWithConstructor extends Event
 class EventWithPhpDocArray extends Event
 {
     public function __construct(
-        public DTO $dto = new DTO(),
+        public DTO $dto = new DTO,
         /** @var DTO[] $dtos */
-        public array $dtos = [new DTO()]
-    ) {
-    }
+        public array $dtos = [new DTO]
+    ) {}
 }

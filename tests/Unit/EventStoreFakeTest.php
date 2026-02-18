@@ -15,11 +15,11 @@ it('performs assertions', function () {
     $store->assertNothingCommitted();
 
     $store->write([
-        $event1 = new EventStoreFakeTestEvent(),
-        $event2 = new EventStoreFakeTestEvent(),
-        $event3 = new EventStoreFakeTestEvent(),
-        $event4 = new EventStoreFakeTestEvent(),
-        $event5 = new EventStoreFakeTestEvent(),
+        $event1 = new EventStoreFakeTestEvent,
+        $event2 = new EventStoreFakeTestEvent,
+        $event3 = new EventStoreFakeTestEvent,
+        $event4 = new EventStoreFakeTestEvent,
+        $event5 = new EventStoreFakeTestEvent,
     ]);
 
     // committed() and hasCommitted()
@@ -120,9 +120,7 @@ class UncommittedEventStoreFakeTestEvent extends Event
     }
 }
 
-class EventStoreFakeTestState extends State
-{
-}
+class EventStoreFakeTestState extends State {}
 
 #[AppliesToState(EventStoreFakeTestState::class, 'state_id')]
 class EventStoreFakeTestStatefulEvent extends Event

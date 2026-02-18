@@ -23,8 +23,7 @@ class EventStore implements StoresEvents
 {
     public function __construct(
         protected MetadataManager $metadata,
-    ) {
-    }
+    ) {}
 
     public function read(
         ?State $state = null,
@@ -61,7 +60,7 @@ class EventStore implements StoresEvents
                 ->when($after_id, fn (Builder $query) => $query->whereRelation('event', 'id', '>', Id::from($after_id)))
 
                 // fixing singlestore grammer
-                ->orderByRaw((new VerbStateEvent())->getKeyName());
+                ->orderByRaw((new VerbStateEvent)->getKeyName());
 
             return $query->lazy()
                 ->map(fn (VerbStateEvent $pivot) => $pivot->event);
@@ -75,7 +74,7 @@ class EventStore implements StoresEvents
     /** @param  Event[]  $events */
     protected function guardAgainstConcurrentWrites(array $events): void
     {
-        $max_event_ids = new Collection();
+        $max_event_ids = new Collection;
 
         $query = VerbStateEvent::query()->toBase();
 

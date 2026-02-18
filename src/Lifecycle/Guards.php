@@ -19,8 +19,7 @@ class Guards
     public function __construct(
         public Event $event,
         public ?State $state = null,
-    ) {
-    }
+    ) {}
 
     public function check(): static
     {
@@ -37,12 +36,12 @@ class Guards
             $this->event->failedAuthorization($this->state);
         }
 
-        throw new AuthorizationException();
+        throw new AuthorizationException;
     }
 
     public function validate(): static
     {
-        $exception = new EventNotValidForCurrentState();
+        $exception = new EventNotValidForCurrentState;
 
         try {
             if ($this->passesValidation()) {
