@@ -95,9 +95,7 @@ class UncommittedEventStoreTestEvent extends Event
     }
 }
 
-class EventStoreTestState extends State
-{
-}
+class EventStoreTestState extends State {}
 
 #[AppliesToState(EventStoreTestState::class, 'state_id')]
 class EventStoreTestStatefulEvent extends Event
@@ -110,9 +108,7 @@ class EventStoreTestStatefulEvent extends Event
     }
 }
 
-class EventStoreTestSingletonState extends State
-{
-}
+class EventStoreTestSingletonState extends State {}
 
 #[AppliesToSingletonState(EventStoreTestSingletonState::class)]
 class EventStoreTestSingletonEvent extends Event
